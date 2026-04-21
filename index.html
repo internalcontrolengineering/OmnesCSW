@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Omnes - Gestión de Contactos</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Google Fonts para tipografía premium -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+    background: #e2e8f0;  /* Gris claro profesional */
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    position: relative;
+}
+
+        /* Fondo decorativo */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><path fill="rgba(255,255,255,0.05)" d="M0 0h200v200H0z"/><path fill="rgba(255,255,255,0.05)" d="M100 0l100 200H0z"/></svg>');
+            opacity: 0.1;
+            pointer-events: none;
+        }
+
+        .app-container {
+            max-width: 1600px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(0px);
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.1);
+            overflow: hidden;
+            min-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        /* HEADER PREMIUM */
+        .app-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+        }
+
+        .app-logo {
+            height: 100px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+            transition: transform 0.3s ease;
+        }
+
+        .app-logo:hover {
+            transform: scale(1.05);
+        }
+
+        .app-name {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #a8b2ff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.5px;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .app-name small {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: rgba(255,255,255,0.7);
+            display: block;
+            letter-spacing: normal;
+        }
+
+        /* TABS MODERNOS */
+        .tabs {
+            display: flex;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0 32px;
+            gap: 8px;
+            flex-shrink: 0;
+            align-items: center;
+            position: relative;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 14px 28px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: #64748b;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            letter-spacing: -0.2px;
+        }
+
+        .tab-btn::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+            border-radius: 3px 3px 0 0;
+        }
+
+        .tab-btn:hover {
+            color: #1e293b;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            background: white;
+        }
+
+        .tab-btn.active::after {
+            width: 80%;
+        }
+
+        .supabase-status {
+            font-size: 0.75rem;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: #f1f5f9;
+            color: #475569;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        /* CONTENIDO PRINCIPAL */
+        .tab-content {
+            display: none;
+            padding: 32px;
+            background: white;
+            animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* SCROLLBAR PERSONALIZADA */
+        .tab-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .tab-content::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+        .tab-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 10px;
+        }
+
+        /* TÍTULOS */
+        h2 {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            color: #1e293b;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #1e293b, #334155);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            border-left: 4px solid #667eea;
+            padding-left: 20px;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            margin: 20px 0 16px 0;
+            color: #334155;
+            font-weight: 600;
+        }
+
+        /* BARRA DE BÚSQUEDA MEJORADA */
+        .search-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 32px;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            padding: 24px;
+            border-radius: 24px;
+            align-items: flex-end;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+
+        .search-bar:hover {
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .search-group {
+            flex: 2;
+            min-width: 220px;
+        }
+
+        .search-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .search-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            background: white;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .search-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+            transform: translateY(-1px);
+        }
+
+        /* BOTONES MODERNOS */
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(102,126,234,0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .btn-export, .btn-import, .btn-sync {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        /* TABLAS MEJORADAS */
+        .results-table-container {
+            overflow-x: auto;
+            margin: 24px 0;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            box-shadow: 0 1px 3px 0 rgba(0,0,0,0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 700;
+            color: #1e293b;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: middle;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        tr:hover td {
+            background: linear-gradient(90deg, rgba(102,126,234,0.05), rgba(118,75,162,0.05));
+            transform: scale(1.01);
+        }
+
+        /* LISTA DE SELECCIONADOS */
+        .selected-list {
+            margin-top: 32px;
+            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            border-radius: 24px;
+            padding: 24px;
+            border: 1px solid #fde68a;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .badge {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 40px;
+            padding: 6px 16px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* ÁREA DE CARGA DE ARCHIVOS */
+        .file-zone {
+            border: 2px dashed #cbd5e1;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border-radius: 28px;
+            padding: 48px 24px;
+            text-align: center;
+            margin: 24px 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-zone.drag-over {
+            background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
+            border-color: #667eea;
+            transform: scale(1.02);
+        }
+
+        .file-zone:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 32px;
+            padding: 40px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            text-align: center;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-card h3 {
+            margin-top: 0;
+            color: #1e293b;
+        }
+
+        .modal-card input {
+            width: 100%;
+            padding: 14px 18px;
+            margin: 20px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .modal-card input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+
+        /* TOAST */
+        .toast-message {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 9999;
+            max-width: 380px;
+            animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .status-msg {
+            margin-top: 12px;
+            padding: 12px 20px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        .success { background: #10b981; color: white; }
+        .error { background: #ef4444; color: white; }
+        .info { background: #3b82f6; color: white; }
+        .warning { background: #f59e0b; color: white; }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+            
+            .app-header {
+                padding: 16px 20px;
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .app-name {
+                font-size: 1.5rem;
+            }
+            
+            .tabs {
+                padding: 0 16px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .tab-btn {
+                padding: 10px 18px;
+                font-size: 0.85rem;
+            }
+            
+            .tab-content {
+                padding: 20px;
+            }
+            
+            h2 {
+                font-size: 1.4rem;
+            }
+            
+            .search-bar {
+                padding: 20px;
+            }
+            
+            .json-buttons {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+            
+            .toast-message {
+                left: 16px;
+                right: 16px;
+                bottom: 16px;
+                max-width: none;
+            }
+        }
+/* ESTILOS MEJORADOS PARA EL BLOQUEO DE ACCESO */
+.locked-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 500px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+    border-radius: 24px;
+    margin: 20px 0;
+}
+
+.lock-card {
+    background: white;
+    border-radius: 32px;
+    padding: 48px 40px;
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 20px 40px -12px rgba(0,0,0,0.15);
+    border: 1px solid rgba(102,126,234,0.2);
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.lock-animation {
+    font-size: 80px;
+    margin-bottom: 24px;
+    display: inline-block;
+    animation: lockShake 0.5s ease-in-out;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.1));
+}
+
+@keyframes lockShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.lock-card h3 {
+    font-size: 1.75rem;
+    margin-bottom: 16px;
+    color: #1e293b;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.lock-card p {
+    color: #64748b;
+    margin-bottom: 32px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.btn-unlock {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-unlock:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102,126,234,0.4);
+}
+
+.btn-unlock:active {
+    transform: translateY(0);
+}
+
+/* Mejora para el área de contenido desbloqueado */
+#dbContent {
+    animation: fadeIn 0.4s ease;
+}
+
+/* Ajustes responsivos */
+@media (max-width: 640px) {
+    .lock-card {
+        padding: 32px 24px;
+        margin: 16px;
+    }
+    
+    .lock-animation {
+        font-size: 60px;
+    }
+    
+    .lock-card h3 {
+        font-size: 1.5rem;
+    }
+    
+    .btn-unlock {
+        padding: 12px 24px;
+        font-size: 0.9rem;
+    }
+}
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- HEADER PREMIUM -->
+    <div class="app-header">
+        <img class="app-logo" src="https://raw.githubusercontent.com/internalcontrolengineering/Desarrollos/main/LogoCI-BC.png" 
+             alt="Control Interno"
+             onerror="this.onerror=null; this.style.display='none';">
+        <div class="app-name">
+            Omnes
+            <small>Gestión Integral de Contactos</small>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="tab1">🔍 Búsqueda Avanzada</button>
+        <button class="tab-btn" data-tab="tab2">📊 Administración</button>
+        <div id="supabaseStatus" class="supabase-status">🔄 Iniciando...</div>
+    </div>
+
+    <!-- PESTAÑA 1: Búsqueda -->
+    <div id="tab1" class="tab-content active">
+        <h2>🔍 Buscador de empleados</h2>
+        <div class="search-bar">
+            <div class="search-group">
+                <label>🔎 Buscar en la base de datos</label>
+                <input type="text" id="searchInput" placeholder="Nombre, correo o número de empleado..." autocomplete="off">
+            </div>
+            <button id="clearSearchBtn" class="btn-secondary">🗑️ Limpiar</button>
+        </div>
+
+        <div id="searchResultsArea">
+            <div class="flex-between">
+                <strong>📌 Resultados encontrados</strong>
+                <span class="badge" id="resultCount">0</span>
+            </div>
+            <div class="results-table-container">
+                <table id="resultsTable">
+                    <thead>
+                        <tr><th>Nombre</th><th>Correo</th><th>Número de Empleado</th><th>Formato de Correo</th><th>Acción</th></tr>
+                    </thead>
+                    <tbody id="resultsTbody">
+                        <tr><td colspan="5" style="text-align:center; padding: 60px;">🔍 Escribe en el buscador para encontrar empleados</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="selected-list">
+            <div class="flex-between">
+                <strong>✅ Mi lista de seleccionados</strong>
+                <button id="clearListBtn" class="btn-danger">🗑️ Limpiar lista</button>
+            </div>
+            <div class="results-table-container">
+                <table id="selectedTable">
+                    <thead>
+                        <tr><th>Nombre</th><th>Correo</th><th># Empleado</th><th>Formato</th><th>Tipo</th><th>Acción</th>
+                    </thead>
+                    <tbody id="selectedTbody">
+                        <tr><td colspan="6" style="text-align:center;">No hay elementos seleccionados</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 20px; text-align: right;">
+                <button id="exportSelectedBtn" class="btn-success">📧 Generar correo en Outlook</button>
+            </div>
+        </div>
+        
+        <div class="json-buttons" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+            <button id="exportJsonBtn" class="btn-export">📤 Exportar BD</button>
+            <button id="importJsonBtn" class="btn-import">📥 Importar BD</button>
+            <button id="syncSupabaseBtn" class="btn-sync">☁️ Sincronizar</button>
+            <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
+        </div>
+    </div>
+
+    <!-- PESTAÑA 2: Administración - VERSIÓN MEJORADA -->
+<div id="tab2" class="tab-content">
+    <div id="lockedMessage" class="locked-container">
+        <div class="lock-card">
+            <div class="lock-animation">🔒</div>
+            <h3>🔐 Acceso Restringido</h3>
+            <p>Esta área de administración requiere autenticación para acceder a la carga masiva de datos y gestión de la base de datos.</p>
+            <button id="requestPasswordBtn" class="btn-unlock">
+                <span>🔓</span> Desbloquear Acceso
+            </button>
+        </div>
+    </div>
+    
+    <div id="dbContent" style="display: none;">
+        <h2>📊 Carga Masiva de Datos</h2>
+        <div class="file-zone" id="dropZone">
+            <p style="font-size: 2rem; margin-bottom: 12px;">📁</p>
+            <p><strong>Arrastra y suelta un archivo Excel aquí</strong></p>
+            <p style="font-size: 0.85rem; color: #64748b; margin-top: 8px;">o haz clic para seleccionar</p>
+            <input type="file" id="excelUploader" accept=".xlsx, .xls" style="display: none;">
+            <div id="uploadStatus"></div>
+        </div>
+        
+        <div class="info" style="padding: 16px; border-radius: 20px; margin-bottom: 24px; background: #dbeafe; color: #1e40af; border-left: 4px solid #3b82f6;">
+            <strong>📌 Estructura esperada del Excel:</strong> <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 8px;">Nombre</code>, 
+            <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 8px;">Correo</code>, 
+            <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 8px;">Número de Empleado</code>, 
+            <code style="background: rgba(0,0,0,0.1); padding: 4px 8px; border-radius: 8px;">Formato de Correo</code>
+        </div>
+        
+        <h3>📋 Base de datos completa</h3>
+        <div id="fullDbContainer" class="db-viewer">
+            <div class="results-table-container">
+                <table id="fullDbTable">
+                    <thead>
+                        <tr><th>Nombre</th><th>Correo</th><th>Número de Empleado</th><th>Formato de Correo</th>
+                    </thead>
+                    <tbody id="fullDbTbody"><tr><td colspan="4" style="text-align:center;">Cargando...</td</tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL -->
+<div id="passwordModal" class="modal">
+    <div class="modal-card">
+        <div class="lock-icon" style="font-size: 48px;">🔐</div>
+        <h3>Ingresar contraseña</h3>
+        <input type="password" id="modalPasswordInput" placeholder="Contraseña" autocomplete="off">
+        <button id="modalUnlockBtn">Desbloquear acceso</button>
+        <div id="modalError" class="error-msg"></div>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // CONFIGURACIÓN DE SUPABASE
+    // ============================================================
+    
+    const SUPABASE_URL = 'https://dxgxodqwdnyqcwngriaa.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR4Z3hvZHF3ZG55cWN3bmdyaWFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTk5MDQsImV4cCI6MjA5MjM3NTkwNH0.4Ddy2ywnQudPfCBPg228dPwqr6LxZWhr0r58J0b8q0k';
+    
+    let supabaseClient = null;
+    let supabaseConnected = false;
+    let supabaseSyncing = false;
+    
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast-message status-msg ${type}`;
+        toast.innerHTML = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    }
+    
+    function updateSupabaseStatus(message, type = 'info') {
+        const statusDiv = document.getElementById('supabaseStatus');
+        if (statusDiv) {
+            statusDiv.innerHTML = message;
+            statusDiv.className = `supabase-status ${type}`;
+        }
+        showToast(message, type);
+    }
+    
+    async function initSupabase() {
+    // Verificar configuración
+    if (!SUPABASE_URL || SUPABASE_URL === 'https://TU_PROYECTO.supabase.co' || 
+        !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === 'TU_ANON_KEY') {
+        updateSupabaseStatus('💾 Modo Local', 'warning');
+        supabaseConnected = false;
+        return;
+    }
+    
+    try {
+        updateSupabaseStatus('🔄 Conectando...', 'info');
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Prueba rápida de conexión con timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const { error } = await supabaseClient.from('empleados').select('count', { count: 'exact', head: true });
+        
+        clearTimeout(timeoutId);
+        
+        if (error && error.message.includes('relation')) {
+            updateSupabaseStatus('⚠️ Tablas no creadas', 'warning');
+            supabaseConnected = false;
+            return;
+        }
+        if (error) throw error;
+        
+        supabaseConnected = true;
+        updateSupabaseStatus('☁️ Cloud Activo ✅', 'success');
+        await loadFromSupabase();
+        
+    } catch (error) {
+        console.log('Modo local activo:', error.message);
+        supabaseConnected = false;
+        updateSupabaseStatus('💾 Modo Local', 'warning');
+    }
+}
+
+async function loadFromSupabase() {
+    if (!supabaseClient || !supabaseConnected) return;
+    
+    supabaseSyncing = true;
+    
+    try {
+        const { data: empleadosData, error: empleadosError } = await supabaseClient
+            .from('empleados')
+            .select('*')
+            .limit(1000);
+        
+        if (!empleadosError && empleadosData && empleadosData.length > 0) {
+            empleadosDB = empleadosData.map(e => ({
+                nombre: e.nombre,
+                correo: e.correo,
+                numEmpleado: e.numEmpleado,
+                formatoCorreo: e.formatoCorreo
+            }));
+            renderSelectedList();
+            resetSearch();
+            if (isUnlocked) renderFullDatabase();
+        }
+        
+        const { data: seleccionadosData } = await supabaseClient
+            .from('seleccionados')
+            .select('*');
+        
+        if (seleccionadosData && seleccionadosData.length > 0) {
+            selectedItems = seleccionadosData.map(s => ({
+                nombre: s.nombre,
+                correo: s.correo,
+                numEmpleado: s.numEmpleado,
+                formatoCorreo: s.formatoCorreo,
+                tipo: s.tipo || 'Para'
+            }));
+            renderSelectedList();
+        }
+        
+    } catch (error) {
+        console.log('Error cargando datos:', error);
+    } finally {
+        supabaseSyncing = false;
+    }
+}
+
+async function saveToSupabase() {
+    if (!supabaseConnected) return;
+    if (supabaseSyncing) return;
+    
+    supabaseSyncing = true;
+    
+    try {
+        // Solo guardar si hay datos
+        if (empleadosDB.length > 0) {
+            await supabaseClient.from('empleados').upsert(
+                empleadosDB.map(emp => ({
+                    nombre: emp.nombre,
+                    correo: emp.correo,
+                    numEmpleado: emp.numEmpleado,
+                    formatoCorreo: emp.formatoCorreo
+                }))
+            );
+        }
+        
+        if (selectedItems.length > 0) {
+            await supabaseClient.from('seleccionados').upsert(
+                selectedItems.map(item => ({
+                    nombre: item.nombre,
+                    correo: item.correo,
+                    numEmpleado: item.numEmpleado,
+                    formatoCorreo: item.formatoCorreo,
+                    tipo: item.tipo
+                }))
+            );
+        }
+        
+    } catch (error) {
+        console.log('Error guardando:', error);
+    } finally {
+        supabaseSyncing = false;
+    }
+}
+
+async function manualSync() {
+    if (!supabaseConnected) {
+        updateSupabaseStatus('💾 Modo Local - Configura Supabase para sincronizar', 'warning');
+        return;
+    }
+    updateSupabaseStatus('🔄 Sincronizando...', 'info');
+    await saveToSupabase();
+    await loadFromSupabase();
+}
+    
+    // ========== FUNCIONALIDAD PRINCIPAL ==========
+    const STORAGE_KEYS = {
+        EMPLEADOS: 'gestionContactos_empleados',
+        SELECCIONADOS: 'gestionContactos_seleccionados'
+    };
+    
+    let empleadosDB = [];   
+    let selectedItems = [];
+    let isUnlocked = false;
+    
+    const searchInput = document.getElementById('searchInput');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const resultsTbody = document.getElementById('resultsTbody');
+    const selectedTbody = document.getElementById('selectedTbody');
+    const resultCountSpan = document.getElementById('resultCount');
+    const clearListBtn = document.getElementById('clearListBtn');
+    const exportSelectedBtn = document.getElementById('exportSelectedBtn');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const importJsonBtn = document.getElementById('importJsonBtn');
+    const syncSupabaseBtn = document.getElementById('syncSupabaseBtn');
+    const jsonFileInput = document.getElementById('jsonFileInput');
+    const lockedMessage = document.getElementById('lockedMessage');
+    const dbContent = document.getElementById('dbContent');
+    const requestPasswordBtn = document.getElementById('requestPasswordBtn');
+    const excelUploader = document.getElementById('excelUploader');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const fullDbTbody = document.getElementById('fullDbTbody');
+    const dropZone = document.getElementById('dropZone');
+    const passwordModal = document.getElementById('passwordModal');
+    const modalPasswordInput = document.getElementById('modalPasswordInput');
+    const modalUnlockBtn = document.getElementById('modalUnlockBtn');
+    const modalError = document.getElementById('modalError');
+    
+    const CORRECT_PASSWORD = "ControlInterno2026";
+    
+    function saveToLocalStorage() {
+        try {
+            localStorage.setItem(STORAGE_KEYS.EMPLEADOS, JSON.stringify(empleadosDB));
+            localStorage.setItem(STORAGE_KEYS.SELECCIONADOS, JSON.stringify(selectedItems));
+            saveToSupabase();
+        } catch (e) {
+            console.error("Error:", e);
+        }
+    }
+    
+    function loadFromLocalStorage() {
+        try {
+            const savedEmpleados = localStorage.getItem(STORAGE_KEYS.EMPLEADOS);
+            const savedSeleccionados = localStorage.getItem(STORAGE_KEYS.SELECCIONADOS);
+            if (savedEmpleados) empleadosDB = JSON.parse(savedEmpleados);
+            if (savedSeleccionados) selectedItems = JSON.parse(savedSeleccionados);
+        } catch (e) {
+            console.error("Error:", e);
+        }
+    }
+    
+    function isEmployeeDuplicate(emp, existingDB) {
+        return existingDB.some(existing => 
+            existing.correo === emp.correo || existing.numEmpleado === emp.numEmpleado
+        );
+    }
+    
+    function exportToJSON() {
+        if (empleadosDB.length === 0) { showToast("No hay datos para exportar", "error"); return; }
+        const exportData = { version: "1.0", fechaExportacion: new Date().toISOString(), totalRegistros: empleadosDB.length, empleados: empleadosDB };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `omnes_contactos_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        showToast(`✅ Exportados ${empleadosDB.length} registros`, "success");
+    }
+    
+    function importFromJSON(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const jsonData = JSON.parse(e.target.result);
+                let imported = jsonData.empleados || (Array.isArray(jsonData) ? jsonData : [jsonData]);
+                const validos = imported.filter(emp => emp.nombre && emp.correo && emp.numEmpleado && emp.formatoCorreo)
+                    .map(emp => ({ nombre: String(emp.nombre).trim(), correo: String(emp.correo).trim(), numEmpleado: String(emp.numEmpleado).trim(), formatoCorreo: String(emp.formatoCorreo).trim() }));
+                const nuevos = validos.filter(emp => !isEmployeeDuplicate(emp, empleadosDB));
+                if (nuevos.length === 0) { showToast("No hay registros nuevos para importar", "warning"); return; }
+                if (confirm(`Importar ${nuevos.length} nuevos registros?`)) {
+                    empleadosDB = [...empleadosDB, ...nuevos];
+                    saveToLocalStorage();
+                    renderSelectedList();
+                    resetSearch();
+                    if (isUnlocked) renderFullDatabase();
+                    showToast(`✅ Importados ${nuevos.length} registros`, "success");
+                }
+            } catch { showToast("Archivo JSON inválido", "error"); }
+        };
+        reader.readAsText(file);
+    }
+    
+    function isEmployeeSelected(emp) {
+        return selectedItems.some(s => s.correo === emp.correo || s.numEmpleado === emp.numEmpleado);
+    }
+    
+    function removeSelectedItem(index) {
+        selectedItems.splice(index, 1);
+        renderSelectedList();
+        performSearch();
+        saveToLocalStorage();
+    }
+    
+    function addToSelected(emp) {
+        if (isEmployeeSelected(emp)) { showToast("Ya está en la lista", "warning"); return false; }
+        selectedItems.push({ ...emp, tipo: 'Para' });
+        renderSelectedList();
+        performSearch();
+        saveToLocalStorage();
+        showToast(`✅ ${emp.nombre} agregado a la lista`, "success");
+        return true;
+    }
+    
+    function renderSelectedList() {
+        if (selectedItems.length === 0) { selectedTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay elementos seleccionados</td></tr>'; return; }
+        let html = '';
+        selectedItems.forEach((item, idx) => {
+            html += `<tr>
+                <td>${escapeHtml(item.nombre)}</td>
+                <td>${escapeHtml(item.correo)}</td>
+                <td>${escapeHtml(item.numEmpleado)}</td>
+                <td>${escapeHtml(item.formatoCorreo)}</td>
+                <td><select class="type-select" data-index="${idx}" style="padding: 6px 12px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <option value="Para" ${item.tipo === 'Para' ? 'selected' : ''}>Para</option>
+                    <option value="CC" ${item.tipo === 'CC' ? 'selected' : ''}>CC</option>
+                    <option value="CCO" ${item.tipo === 'CCO' ? 'selected' : ''}>CCO</option>
+                </select></td>
+                <td><button class="delete-btn" data-index="${idx}" style="background: #ef4444; padding: 6px 12px; font-size: 0.75rem;">✗ Eliminar</button></td>
+            </tr>`;
+        });
+        selectedTbody.innerHTML = html;
+        document.querySelectorAll('.type-select').forEach(s => s.addEventListener('change', e => {
+            let idx = parseInt(s.dataset.index);
+            if (!isNaN(idx) && selectedItems[idx]) { selectedItems[idx].tipo = s.value; saveToLocalStorage(); }
+        }));
+        document.querySelectorAll('.delete-btn').forEach(b => b.addEventListener('click', e => removeSelectedItem(parseInt(b.dataset.index))));
+    }
+    
+    function renderSearchResults(results) {
+        const disponibles = results.filter(emp => !isEmployeeSelected(emp));
+        resultCountSpan.innerText = disponibles.length;
+        if (disponibles.length === 0) { resultsTbody.innerHTML = results.length ? '<tr><td colspan="5" style="text-align:center;">✅ Todos ya están en tu lista</td></tr>' : '<tr><td colspan="5" style="text-align:center;">❌ No se encontraron coincidencias</td></tr>'; return; }
+        let html = '';
+        disponibles.forEach(emp => {
+            html += `<tr class="result-row" data-nombre="${escapeHtml(emp.nombre)}" data-correo="${escapeHtml(emp.correo)}" data-num="${escapeHtml(emp.numEmpleado)}" data-formato="${escapeHtml(emp.formatoCorreo)}">
+                <td>${escapeHtml(emp.nombre)}</td>
+                <td>${escapeHtml(emp.correo)}</td>
+                <td>${escapeHtml(emp.numEmpleado)}</td>
+                <td>${escapeHtml(emp.formatoCorreo)}</td>
+                <td><button class="select-btn" style="background: linear-gradient(135deg, #667eea, #764ba2); padding: 6px 16px;">➕ Seleccionar</button></td>
+            </tr>`;
+        });
+        resultsTbody.innerHTML = html;
+        document.querySelectorAll('.result-row').forEach(row => {
+            row.addEventListener('dblclick', () => addToSelected({ nombre: row.dataset.nombre, correo: row.dataset.correo, numEmpleado: row.dataset.num, formatoCorreo: row.dataset.formato }));
+        });
+        document.querySelectorAll('.select-btn').forEach(btn => btn.addEventListener('click', e => {
+            e.stopPropagation();
+            let row = btn.closest('.result-row');
+            addToSelected({ nombre: row.dataset.nombre, correo: row.dataset.correo, numEmpleado: row.dataset.num, formatoCorreo: row.dataset.formato });
+        }));
+    }
+    
+    function performSearch() {
+        let query = searchInput.value.trim().toLowerCase();
+        if (!empleadosDB.length) { resultsTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">📭 No hay datos cargados</td></tr>'; resultCountSpan.innerText = '0'; return; }
+        if (!query) { resultsTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">🔍 Escribe para buscar empleados</td></tr>'; resultCountSpan.innerText = '0'; return; }
+        let filtered = empleadosDB.filter(emp => emp.nombre.toLowerCase().includes(query) || emp.correo.toLowerCase().includes(query) || emp.numEmpleado.toString().includes(query));
+        renderSearchResults(filtered);
+    }
+    
+    function resetSearch() { searchInput.value = ''; resultsTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">🔍 Escribe para buscar empleados</td></tr>'; resultCountSpan.innerText = '0'; }
+    function clearSelectedList() { if (confirm("¿Limpiar la lista de seleccionados?")) { selectedItems = []; renderSelectedList(); performSearch(); saveToLocalStorage(); showToast("Lista limpiada", "success"); } }
+    
+    function generateOutlookEmail() {
+        if (!selectedItems.length) { showToast("No hay elementos en la lista", "warning"); return; }
+        let para = [], cc = [], cco = [];
+        selectedItems.forEach(i => { let f = i.formatoCorreo || `${i.nombre} <${i.correo}>`; if (i.tipo === 'Para') para.push(f); else if (i.tipo === 'CC') cc.push(f); else if (i.tipo === 'CCO') cco.push(f); });
+        let url = 'mailto:';
+        if (para.length) url += para.join(';');
+        let params = [];
+        if (cc.length) params.push('cc=' + encodeURIComponent(cc.join(';')));
+        if (cco.length) params.push('bcc=' + encodeURIComponent(cco.join(';')));
+        params.push('subject=' + encodeURIComponent('Comunicación desde Omnes'));
+        params.push('body=' + encodeURIComponent('Estimados,\n\n\n\nSaludos cordiales.\n\nEquipo de Gestión'));
+        if (params.length) url += '?' + params.join('&');
+        window.location.href = url;
+        showToast(`✅ Correo abierto - PARA: ${para.length} | CC: ${cc.length} | CCO: ${cco.length}`, "success");
+    }
+    
+    function renderFullDatabase() {
+        if (!empleadosDB.length) { fullDbTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">📭 Base de datos vacía</td></tr>'; return; }
+        fullDbTbody.innerHTML = empleadosDB.map(emp => `<tr><td>${escapeHtml(emp.nombre)}</td><td>${escapeHtml(emp.correo)}</td><td>${escapeHtml(emp.numEmpleado)}</td><td>${escapeHtml(emp.formatoCorreo)}</td></tr>`).join('');
+    }
+    
+    function loadExcelData(file) {
+        let reader = new FileReader();
+        reader.onload = e => {
+            let workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            let rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            if (!rows.length) { uploadStatus.innerHTML = '<span class="error">Archivo vacío</span>'; return; }
+            let nuevos = [];
+            for (let row of rows) {
+                if (row.Nombre && row.Correo && row['Número de Empleado'] && row['Formato de Correo']) {
+                    nuevos.push({ nombre: String(row.Nombre).trim(), correo: String(row.Correo).trim(), numEmpleado: String(row['Número de Empleado']).trim(), formatoCorreo: String(row['Formato de Correo']).trim() });
+                }
+            }
+            if (!nuevos.length) { uploadStatus.innerHTML = '<span class="error">Formato incorrecto</span>'; return; }
+            empleadosDB = nuevos;
+            selectedItems = [];
+            renderSelectedList();
+            resetSearch();
+            saveToLocalStorage();
+            if (isUnlocked) renderFullDatabase();
+            uploadStatus.innerHTML = `<span class="success">✅ Cargados ${empleadosDB.length} registros</span>`;
+            showToast(`✅ ${empleadosDB.length} registros cargados exitosamente`, "success");
+            setTimeout(() => uploadStatus.innerHTML = '', 3000);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    
+    function setupDragAndDrop() {
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) loadExcelData(e.dataTransfer.files[0]); });
+        dropZone.addEventListener('click', () => excelUploader.click());
+    }
+    
+    function showPasswordModal() { passwordModal.classList.add('active'); modalPasswordInput.focus(); }
+    function hidePasswordModal() { passwordModal.classList.remove('active'); }
+    function unlockWithPassword() {
+        if (modalPasswordInput.value === CORRECT_PASSWORD) {
+            isUnlocked = true;
+            hidePasswordModal();
+            lockedMessage.style.display = 'none';
+            dbContent.style.display = 'block';
+            renderFullDatabase();
+            setupDragAndDrop();
+            showToast("Acceso concedido", "success");
+        } else { modalError.innerText = '❌ Contraseña incorrecta'; modalPasswordInput.value = ''; }
+    }
+    function lockDatabaseTab() { if (isUnlocked) { isUnlocked = false; lockedMessage.style.display = 'flex'; dbContent.style.display = 'none'; } }
+    
+    function initTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+            let tabId = btn.dataset.tab;
+            let prev = document.querySelector('.tab-btn.active')?.dataset.tab;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if (prev === 'tab2' && tabId !== 'tab2') lockDatabaseTab();
+            if (tabId === 'tab2') {
+                if (isUnlocked) { if (lockedMessage.style.display === 'none') renderFullDatabase(); }
+                else { lockedMessage.style.display = 'flex'; dbContent.style.display = 'none'; }
+            }
+        }));
+    }
+    
+    function bindEvents() {
+        clearSearchBtn.addEventListener('click', resetSearch);
+        clearListBtn.addEventListener('click', clearSelectedList);
+        exportSelectedBtn.addEventListener('click', generateOutlookEmail);
+        searchInput.addEventListener('input', performSearch);
+        requestPasswordBtn.addEventListener('click', showPasswordModal);
+        modalUnlockBtn.addEventListener('click', unlockWithPassword);
+        modalPasswordInput.addEventListener('keypress', e => { if (e.key === 'Enter') unlockWithPassword(); });
+        excelUploader.addEventListener('change', e => { if (excelUploader.files[0]) loadExcelData(excelUploader.files[0]); });
+        passwordModal.addEventListener('click', e => { if (e.target === passwordModal) hidePasswordModal(); });
+        exportJsonBtn.addEventListener('click', exportToJSON);
+        importJsonBtn.addEventListener('click', () => jsonFileInput.click());
+        syncSupabaseBtn.addEventListener('click', manualSync);
+        jsonFileInput.addEventListener('change', e => { if (jsonFileInput.files[0]) { importFromJSON(jsonFileInput.files[0]); jsonFileInput.value = ''; } });
+    }
+    
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m])); }
+    
+    function init() {
+        loadFromLocalStorage();
+        initSupabase();
+        isUnlocked = false;
+        renderSelectedList();
+        resetSearch();
+        initTabs();
+        bindEvents();
+        lockedMessage.style.display = 'flex';
+        dbContent.style.display = 'none';
+        if (empleadosDB.length) resultsTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">🔍 Escribe para buscar empleados</td></tr>';
+    }
+    
+    init();
+</script>
+</body>
+</html>
