@@ -1069,17 +1069,58 @@ async function manualSync() {
         );
     }
     
-    function exportToJSON() {
-        if (empleadosDB.length === 0) { showToast("No hay datos para exportar", "error"); return; }
-        const exportData = { version: "1.0", fechaExportacion: new Date().toISOString(), totalRegistros: empleadosDB.length, empleados: empleadosDB };
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    async function exportToJSON() {
+    if (empleadosDB.length === 0) { 
+        showToast("No hay datos para exportar", "error"); 
+        return; 
+    }
+    
+    const exportData = { 
+        version: "1.0", 
+        fechaExportacion: new Date().toISOString(), 
+        totalRegistros: empleadosDB.length, 
+        empleados: empleadosDB 
+    };
+    
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const fileName = `Omnes_respaldo_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+    
+    // Verificar si el navegador soporta File System Access API
+    if ('showSaveFilePicker' in window) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: fileName,
+                types: [{
+                    description: 'Archivo JSON',
+                    accept: { 'application/json': ['.json'] }
+                }]
+            });
+            
+            const writable = await handle.createWritable();
+            await writable.write(jsonString);
+            await writable.close();
+            
+            showToast(`✅ Exportados ${empleadosDB.length} registros a la ubicación seleccionada`, "success");
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error('Error al guardar:', err);
+                showToast("Error al guardar el archivo", "error");
+            }
+        }
+    } else {
+        // Fallback para navegadores que no soportan la API
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `omnes_contactos_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(a.href);
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
         showToast(`✅ Exportados ${empleadosDB.length} registros`, "success");
     }
+}
     
     function importFromJSON(file) {
         const reader = new FileReader();
