@@ -1196,7 +1196,7 @@ async function manualSync() {
         if (cc.length) params.push('cc=' + encodeURIComponent(cc.join(';')));
         if (cco.length) params.push('bcc=' + encodeURIComponent(cco.join(';')));
         params.push('subject=' + encodeURIComponent('Comunicación desde Omnes'));
-        params.push('body=' + encodeURIComponent('Estimados,\n\n\n\nSaludos cordiales.\n\nEquipo de Gestión'));
+        params.push('body=' + encodeURIComponent('Estimados,\n\n\n\nSaludos cordiales.\n\nEquipo de Control Interno'));
         if (params.length) url += '?' + params.join('&');
         window.location.href = url;
         showToast(`✅ Correo abierto - PARA: ${para.length} | CC: ${cc.length} | CCO: ${cco.length}`, "success");
